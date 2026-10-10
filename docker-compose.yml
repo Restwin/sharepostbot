@@ -1,0 +1,17 @@
+services:
+  bot:
+    build: .
+    image: restwin/sharepostbot:latest
+    restart: always
+    env_file:
+      - .env
+    environment:
+      # Control API must listen on 0.0.0.0 inside the container.
+      # /ready and /version stay protected by HTTP_API_PASSWORD.
+      HTTP_HOST: 0.0.0.0
+    ports:
+      - "8080:8080"   # webhook
+      - "8081:8081"   # control API (health checks from the host)
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs

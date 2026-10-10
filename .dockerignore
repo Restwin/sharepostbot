@@ -1,0 +1,23 @@
+# Local state, secrets and tooling — never part of the image build context.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+data/
+logs/
+.env
+.env.*
+!.env.example
+.git/
+.gitignore
+.DS_Store
+.serena/
+.github/
+tests/
+docs/
+*.md
+!README.md
