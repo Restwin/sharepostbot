@@ -26,7 +26,20 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: docker build -t sharepostbot .
-      - run: docker run -d --name bot-test -p 8081:8081 -e BOT_TOKEN=test -e BOT_NAME=test -e MAIN_CHANNEL_ID=-100 -e HTTP_API_PASSWORD=test -e HTTP_HOST=0.0.0.0 sharepostbot
-      - run: sleep 5 && curl -sf http://127.0.0.1:8081/health
+      # Webhook mode with a dummy URL keeps the process alive without touching
+      # Telegram; the real token is never needed for the smoke check.
+      - name: Run smoke container
+        run: >-
+          docker run -d --name bot-test -p 8081:8081
+          -e BOT_TOKEN=1234567890:TESTTESTTEST
+          -e BOT_NAME=testbot
+          -e MAIN_CHANNEL_ID=-100
+          -e WEBHOOK_URL=https://test.local
+          -e WEBHOOK_SECRET=smokesecret
+          -e WEBHOOK_PUBLIC_URL=https://test.local
+          -e HTTP_API_PASSWORD=test
+          -e HTTP_HOST=0.0.0.0 sharepostbot
+      - name: Check /health
+        run: sleep 5 && curl -sf http://127.0.0.1:8081/health
       - if: always()
         run: docker logs bot-test
