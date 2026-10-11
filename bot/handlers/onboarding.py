@@ -92,7 +92,9 @@ async def _auto_register_if_admin(
     try:
         join_link = await bot.export_chat_invite_link(chat.id)
     except TelegramBadRequest as exc:
-        _log.warning("auto_register_export_failed", chat_id=chat.id, error=str(exc))
+        _log.warning(
+            "auto_register_export_failed", chat_id=chat.id, error=str(exc), to_tech="business"
+        )
         return False
 
     title = chat.title or str(chat.id)
@@ -160,7 +162,7 @@ async def on_bot_added(
         existing = await repo.get_by_chat_id(chat.id)
 
     if existing is not None and existing.is_blocked:
-        _log.info("bot_added_blocked_chat", chat_id=chat.id, title=chat.title)
+        _log.info("bot_added_blocked_chat", chat_id=chat.id, title=chat.title, to_tech="business")
         lines = [texts.ONBOARDING_BLOCKED_CHAT]
         lines += await blocked_chat_lines(
             session_factory,

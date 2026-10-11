@@ -138,7 +138,7 @@ async def chat_target_input(
             await session.commit()
             await state.clear()
             await temp_reply(message, texts.CHAT_REMOVED.format(name=html_escape(name)))
-            _log.info("chat_removed", chat_id=chat.chat_id, chat_name=name)
+            _log.info("chat_removed", chat_id=chat.chat_id, chat_name=name, to_tech="admin")
             return
 
         # action == "unblock"
@@ -156,7 +156,7 @@ async def chat_target_input(
                 owner_id,
                 texts.CHAT_UNBLOCKED_NOTIFY.format(name=html_escape(name)),
             )
-        _log.info("chat_unblocked", chat_id=chat.chat_id, chat_name=name)
+        _log.info("chat_unblocked", chat_id=chat.chat_id, chat_name=name, to_tech="admin")
 
 
 @router.message(ChatManageState.waiting_for_reason, F.chat.type == ChatType.PRIVATE)
@@ -203,6 +203,7 @@ async def chat_reason_input(
         chat_id=chat_id,
         chat_name=name,
         by=message.from_user.id if message.from_user else 0,
+        to_tech="admin",
     )
 
 
@@ -475,7 +476,7 @@ async def remove_chat(
         await session.commit()
 
     await temp_reply(message, texts.CHAT_REMOVED.format(name=html_escape(name)))
-    _log.info("chat_removed", chat_id=chat.chat_id, chat_name=name)
+    _log.info("chat_removed", chat_id=chat.chat_id, chat_name=name, to_tech="admin")
 
 
 @router.message(Command("block_chat"), F.chat.type == ChatType.PRIVATE)

@@ -55,7 +55,10 @@ MD5 passwords, .NET 5 EOL.
 - Control HTTP API on `HTTP_PORT`: `/health` (open, used by the Docker
   healthcheck), `/ready` and `/version` (bearer `HTTP_API_PASSWORD`).
 - SQLite in WAL mode; `/backup_db` snapshots the database and sends it to the
-  debug chats.
+  tech chat; scheduled snapshots stay on disk.
+- Tech chat (`DEBUG_INFO_CHAT_IDS`): log events are forwarded there — errors
+  automatically, admin audit and business/system events by category
+  (`LOG_CHAT_EVENTS`); start/stop notices included.
 - Structured logging (structlog) with secret redaction; bot replies in group
   chats auto-delete after ~1 minute.
 
@@ -120,9 +123,10 @@ Telegram sends updates to `https://your.public.host/webhook` with the
 
 All settings are environment variables, documented in
 [`.env.example`](.env.example). List values (`ADMIN_IDS`, `DEBUG_INFO_CHAT_IDS`,
-`REPOST_TRIGGER_PHRASES`) are comma-separated, not JSON. To deploy on a server,
-publish the image, put `docker-compose.yml` and a filled `.env` next to it, and
-run `docker compose up -d`.
+`REPOST_TRIGGER_PHRASES`) are comma-separated, not JSON. The optional tech chat
+is controlled by `DEBUG_INFO_CHAT_IDS`, `LOG_CHAT_LEVEL` and `LOG_CHAT_EVENTS`.
+To deploy on a server, publish the image, put `docker-compose.yml` and a filled
+`.env` next to it, and run `docker compose up -d`.
 
 ## Posting flow
 

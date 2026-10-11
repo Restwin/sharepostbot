@@ -10,7 +10,6 @@ __pycache__/
 htmlcov/
 
 .serena/
-.github/
 
 build/
 dist/

@@ -14,6 +14,7 @@ from aiogram.utils.chat_action import ChatActionMiddleware
 from aiohttp import web
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from bot import __version__
 from bot.config import Settings
 from bot.db.init_db import init_db
 from bot.db.session import create_engine, create_session_factory
@@ -23,6 +24,7 @@ from bot.handlers import (
     admin,
     chat_manage,
     common,
+    errors,
     links,
     onboarding,
     posts,
@@ -38,6 +40,7 @@ from bot.middlewares.media_group import MediaGroupCacheMiddleware
 from bot.middlewares.throttling import ThrottlingMiddleware
 from bot.services.access import AccessService
 from bot.services.media_group_cache import MediaGroupCache
+from bot.services.tech_chat import TechChatSink
 from bot.session import RetryingAiohttpSession
 from bot.web.app import build_control_app, build_webhook_app
 
@@ -78,9 +81,21 @@ async def _on_startup(
     except Exception as exc:
         log.warning("register_commands_failed", error=str(exc))
 
+    tech_sink: TechChatSink = dispatcher["tech_sink"]
+    tech_sink.attach(bot)
+    log.info(
+        "bot_started",
+        version=__version__,
+        mode="webhook" if settings.is_webhook_mode else "polling",
+        to_tech="system",
+    )
+
 
 async def _on_shutdown(bot: Bot, settings: Settings, dispatcher: Dispatcher) -> None:
     log = get_logger("bot.shutdown")
+    log.info("bot_stopping", to_tech="system")
+    tech_sink: TechChatSink = dispatcher["tech_sink"]
+    await tech_sink.aclose()
     if settings.is_webhook_mode:
         try:
             await bot.delete_webhook()
@@ -93,6 +108,8 @@ async def _on_shutdown(bot: Bot, settings: Settings, dispatcher: Dispatcher) -> 
 def build_dispatcher(settings: Settings) -> Dispatcher:
     """Wire routers + middlewares into a Dispatcher."""
     dp = Dispatcher(storage=MemoryStorage())
+
+    errors.register_error_handler(dp)
 
     # Middlewares (outermost → innermost)
     dp.update.outer_middleware(LoggingMiddleware())
@@ -153,12 +170,19 @@ def build_bot(settings: Settings) -> Bot:
 
 
 async def run_async(settings: Settings) -> None:
+    tech_sink = TechChatSink(
+        settings.debug_info_chat_ids,
+        level=settings.log_chat_level,
+        categories=settings.log_chat_events,
+    )
     configure_logging(
         settings.log_level,
         settings.log_dir,
         log_json=settings.log_json,
         log_max_bytes=settings.log_max_bytes,
         log_backup_count=settings.log_backup_count,
+        secrets=(settings.bot_token, settings.webhook_secret, settings.http_api_password),
+        extra_processor=tech_sink.processor,
     )
     log = get_logger("bot.main")
 
@@ -176,6 +200,7 @@ async def run_async(settings: Settings) -> None:
     dp["settings"] = settings
     dp["session_factory"] = session_factory
     dp["bot"] = bot
+    dp["tech_sink"] = tech_sink
 
     # Membership + access gates need the bot instance, so install them here.
     from bot.services.membership import MembershipService

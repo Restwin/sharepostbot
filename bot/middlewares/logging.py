@@ -105,13 +105,4 @@ class LoggingMiddleware(BaseMiddleware):
             fields["callback_message_id"] = cq.message.message_id if cq.message else None
 
         self._log.debug("update", **fields)
-        try:
-            return await handler(event, data)
-        except Exception as exc:
-            self._log.exception(
-                "handler_error",
-                update_id=event.update_id,
-                error=str(exc),
-                error_type=type(exc).__name__,
-            )
-            raise
+        return await handler(event, data)

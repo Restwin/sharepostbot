@@ -233,6 +233,7 @@ async def users_role_picked(
         target_id=target_id,
         role=role.name,
         by=query.from_user.id if query.from_user else 0,
+        to_tech="admin",
     )
 
 
@@ -530,6 +531,7 @@ async def cmd_users(
             target_id=target_id,
             role=role.name,
             by=message.from_user.id if message.from_user else 0,
+            to_tech="admin",
         )
         return
 

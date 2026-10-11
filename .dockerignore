@@ -16,7 +16,6 @@ logs/
 .gitignore
 .DS_Store
 .serena/
-.github/
 tests/
 docs/
 *.md

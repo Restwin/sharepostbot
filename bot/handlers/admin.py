@@ -13,10 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from bot import texts
 from bot.config import Settings
 from bot.db.repo.users import UserRepository
+from bot.logging_setup import get_logger
 from bot.services.access import AccessService, PublishChannel
 from bot.services.access_messages import collect_staff_ids
 from bot.utils.formatting import html_escape
 from bot.utils.replies import temp_reply
+
+_log = get_logger("bot.admin")
 
 router = Router(name="admin")
 
@@ -87,4 +90,5 @@ async def backup_db(
     target_chats = settings.debug_info_chat_ids or [message.chat.id]
     for chat_id in target_chats:
         await bot.send_document(chat_id, document, caption="#backup")
+    _log.info("backup_sent", target_chats=target_chats, to_tech="admin")
     await temp_reply(message, texts.BACKUP_SENT)

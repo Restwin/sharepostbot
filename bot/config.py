@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     log_json: bool = False
     log_max_bytes: int = 10 * 1024 * 1024
     log_backup_count: int = 5
+    # Tech chat (DEBUG_INFO_CHAT_IDS): events at or above `log_chat_level` are
+    # forwarded automatically ("errors" category); `log_chat_events` lists the
+    # enabled categories (see bot/services/tech_chat.py).
+    log_chat_level: str = "ERROR"
+    log_chat_events: list[str] = Field(
+        default_factory=lambda: ["errors", "system", "admin", "business"]
+    )
 
     # --- HTTP control API ---
     http_host: str = "127.0.0.1"
