@@ -26,8 +26,14 @@ def _settings() -> Settings:
 
 
 class FakeMembership:
+    def __init__(self, *, in_channel: bool = True) -> None:
+        self._in_channel = in_channel
+
     async def is_member(self, user_id: int) -> bool:
         return False
+
+    async def bot_in_main_channel(self) -> bool:
+        return self._in_channel
 
 
 def _message(text: str, entities: list[MessageEntity] | None = None) -> Message:
@@ -121,3 +127,25 @@ async def test_mention_still_gated(session_factory, monkeypatch):
     await mw(handler, _message("@testbot", entities=[mention]), {})
     assert not called
     assert replies, "deny reply expected"
+
+
+@pytest.mark.asyncio
+async def test_publish_blocked_when_bot_not_in_main_channel(session_factory, monkeypatch):
+    mw = RepostAccessMiddleware(
+        AccessService(_settings(), session_factory),
+        FakeMembership(in_channel=False),
+        session_factory,
+        _settings(),
+    )
+    replies: list[str] = []
+    monkeypatch.setattr("bot.middlewares.access.temp_reply", _fake_temp_reply(replies))
+    called: list[int] = []
+
+    async def handler(event, data):
+        called.append(1)
+
+    mention = MessageEntity(type="mention", offset=0, length=8)
+    await mw(handler, _message("@testbot", entities=[mention]), {})
+    assert not called
+    assert replies, "deny reply expected"
+    assert "главному каналу" in replies[0]

@@ -263,9 +263,7 @@ async def repost_category_selected(
     except TelegramBadRequest as exc:
         _log.error("repost_publish_failed", chat_id=trigger_chat_id, error=str(exc))
         if isinstance(query.message, Message):
-            await query.message.edit_text(
-                texts.REPOST_PUBLISH_FAILED.format(error=html_escape(exc.message))
-            )
+            await query.message.edit_text(texts.REPOST_PUBLISH_FAILED)
         return
 
     # A pre-publish check (e.g. caption too long) returns an error with no ids.
@@ -371,9 +369,7 @@ async def repost_poll_forward(
     except TelegramBadRequest as exc:
         _log.error("repost_poll_forward_failed", error=str(exc))
         if isinstance(query.message, Message):
-            await query.message.edit_text(
-                texts.REPOST_PUBLISH_FAILED.format(error=html_escape(exc.message))
-            )
+            await query.message.edit_text(texts.REPOST_PUBLISH_FAILED)
         return
 
     await record_post(

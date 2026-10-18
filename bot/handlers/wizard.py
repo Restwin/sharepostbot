@@ -508,14 +508,12 @@ async def callback_publish(
             return
     except TelegramBadRequest as exc:
         _log.error("wizard_publish_failed", chat_id=chat_id, error=str(exc))
-        await query.message.answer(
-            texts.WIZARD_PUBLISH_FAILED.format(error=html_escape(exc.message))
-        )
+        await query.message.answer(texts.WIZARD_PUBLISH_FAILED)
         await state.clear()
         return
     except Exception as exc:
         _log.exception("wizard_publish_failed", chat_id=chat_id, error=str(exc))
-        await query.message.answer(texts.WIZARD_INTERNAL_ERROR.format(error=html_escape(str(exc))))
+        await query.message.answer(texts.WIZARD_INTERNAL_ERROR)
         await state.clear()
         return
 

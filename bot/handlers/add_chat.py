@@ -9,19 +9,26 @@ from __future__ import annotations
 
 import re
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.enums import ChatType
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import Message
+from aiogram.types import (
+    ChatMemberAdministrator,
+    ChatMemberMember,
+    ChatMemberOwner,
+    ChatMemberRestricted,
+    Message,
+)
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bot import texts
+from bot.db.models import UserRole
 from bot.db.repo.chats import ChatRepository
 from bot.logging_setup import get_logger
 from bot.services.access import AccessService, PublishChannel
-from bot.services.access_messages import build_guest_message
+from bot.services.access_messages import blocked_pm_reply, build_guest_message
 from bot.services.membership import MembershipService
 from bot.utils.formatting import html_escape
 from bot.utils.replies import temp_reply
@@ -81,7 +88,7 @@ async def _gate_membership(
     membership: MembershipService,
     session_factory: async_sessionmaker[AsyncSession],
 ) -> bool:
-    """True if the sender may add a chat (STAFF or main-channel member)."""
+    """True if the sender may add a chat (STAFF or main-channel member, not blocked)."""
     user = message.from_user
     if user is None:
         return False
@@ -92,10 +99,29 @@ async def _gate_membership(
         last_name=user.last_name,
         channel=PublishChannel.PM,
     )
+    if decision.role == UserRole.BLOCKED:
+        await message.answer(blocked_pm_reply(decision))
+        return False
     if not decision.is_staff and not await membership.is_member(user.id):
         await message.answer(await build_guest_message(session_factory))
         return False
     return True
+
+
+async def _requester_in_chat(bot: Bot, chat_id: int, user_id: int) -> bool:
+    """True when `user_id` is a member (any status) of `chat_id`.
+
+    Verifies that a user submitting an invite link for a chat is actually in
+    that chat, so their knowledge of the link is legitimate.
+    """
+    try:
+        member = await bot.get_chat_member(chat_id, user_id)
+    except Exception:
+        return False
+    return isinstance(
+        member,
+        (ChatMemberOwner, ChatMemberAdministrator, ChatMemberMember, ChatMemberRestricted),
+    )
 
 
 @router.message(Command("add_chat"), F.chat.type == ChatType.PRIVATE)
@@ -182,6 +208,8 @@ async def add_chat_name_input(
 async def add_chat_link_input(
     message: Message,
     state: FSMContext,
+    bot: Bot,
+    access: AccessService,
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     data = await state.get_data()
@@ -198,28 +226,54 @@ async def add_chat_link_input(
         await state.clear()
         return
 
+    user = message.from_user
+    if user is None:
+        return
+    decision = await access.resolve(
+        user.id,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        channel=PublishChannel.PM,
+    )
+    if decision.role == UserRole.BLOCKED:
+        await state.clear()
+        await message.answer(blocked_pm_reply(decision))
+        return
+    if not decision.is_staff and not await _requester_in_chat(bot, chat_id, user.id):
+        await temp_reply(message, texts.ADD_CHAT_NOT_IN_CHAT)
+        return
+
     if parse_chat_link(link) is None:
         await state.set_state(AddChatState.waiting_for_link)
         await temp_reply(message, texts.ADD_CHAT_BAD_LINK + CANCEL_HINT)
         return
 
-    await state.clear()
-
     async with session_factory() as session:
         repo = ChatRepository(session)
+        existing = await repo.get_by_chat_id(chat_id)
+        if (
+            existing is not None
+            and existing.join_link
+            and existing.link_source == "bot"
+            and not decision.is_staff
+        ):
+            await temp_reply(message, texts.ADD_CHAT_LINK_PROTECTED)
+            return
         await repo.add_or_update(
             chat_id=chat_id,
             exact_name=name,
             join_link=link,
-            added_by=message.from_user.id if message.from_user else None,
+            added_by=user.id,
             link_source="pm",
         )
         await session.commit()
 
+    await state.clear()
     _log.info(
         "chat_added_via_wizard",
         chat_id=chat_id,
         title=name,
-        added_by=message.from_user.id if message.from_user else None,
+        added_by=user.id,
     )
     await message.answer(texts.ADD_CHAT_SUCCESS.format(name=html_escape(name)))

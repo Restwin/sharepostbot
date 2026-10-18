@@ -83,6 +83,15 @@ async def _on_startup(
 
     tech_sink: TechChatSink = dispatcher["tech_sink"]
     tech_sink.attach(bot)
+
+    # Warm the main-channel check now: if the bot cannot see the channel, an
+    # error is logged and forwarded to the tech chat, and publishing stays
+    # gated until the channel is reachable again.
+    from bot.services.membership import MembershipService
+
+    membership: MembershipService = dispatcher["membership"]
+    await membership.bot_in_main_channel()
+
     log.info(
         "bot_started",
         version=__version__,

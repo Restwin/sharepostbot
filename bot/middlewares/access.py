@@ -15,6 +15,7 @@ from aiogram.enums import ChatType
 from aiogram.types import CallbackQuery, Message, TelegramObject, User
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from bot import texts
 from bot.config import Settings
 from bot.handlers.repost import is_repost_trigger
 from bot.logging_setup import get_logger
@@ -56,6 +57,10 @@ async def _publish_gate(
         if channel == PublishChannel.MENTION:
             return decision, blocked_mention_reply(decision)
         return decision, blocked_pm_reply(decision)
+    # publishing is impossible while the bot is not in the main channel;
+    # fail early with a clear message instead of a raw publish error
+    if not await membership.bot_in_main_channel():
+        return decision, texts.PUBLISH_BOT_NOT_IN_CHANNEL
     if not decision.is_staff and not await membership.is_member(user.id):
         if channel == PublishChannel.MENTION:
             return decision, not_member_mention_reply()

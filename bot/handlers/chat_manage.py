@@ -23,12 +23,14 @@ from aiogram.types import (
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bot import texts
+from bot.config import Settings
 from bot.db.models import SavedChat
 from bot.db.repo.chats import ChatRepository
 from bot.logging_setup import get_logger
 from bot.services.access import AccessService
 from bot.services.access_messages import blocked_chat_lines, require_staff, resolve_user_handle
-from bot.services.invite_links import create_confirm_link
+from bot.services.invite_links import create_confirm_link, create_open_link
+from bot.services.membership import MembershipService
 from bot.utils.formatting import html_escape
 from bot.utils.replies import notify_user, temp_reply
 
@@ -211,19 +213,32 @@ async def chat_reason_input(
 async def on_my_chat_member(
     update: ChatMemberUpdated,
     bot: Bot,
+    settings: Settings,
+    membership: MembershipService,
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     """React to the bot's status change in a chat.
 
-    Three cases:
+    Main channel first: removal/restoration updates the cached channel state,
+    which gates publishing and notifies the tech chat immediately (no need to
+    wait for a publish attempt or a restart).
+
+    For source chats, three cases:
     - Removed from the chat (left/kicked): drop the chat from the list (unless
       it's blocked) and notify the registrar.
     - Lost `can_invite_users` (demoted, still a member): clear the stale link
       and notify the owner.
-    - Gained `can_invite_users` (promoted): (re-)export the invite link.
+    - Gained `can_invite_users` (promoted): (re-)create the invite link.
     """
     new_status = update.new_chat_member.status
     chat_id = update.chat.id
+
+    if chat_id == settings.main_channel_id:
+        if new_status in ("left", "kicked"):
+            membership.set_main_channel_state(False, reason="bot removed from the main channel")
+        elif new_status in ("member", "administrator"):
+            membership.set_main_channel_state(True)
+        return
 
     # ─── Bot removed from the chat entirely ───
     if new_status in ("left", "kicked"):
@@ -290,13 +305,14 @@ async def on_my_chat_member(
             return  # permanent link, keep it, don't overwrite
 
     # Keep the link type the owner chose: "confirm" links are recreated as
-    # join-request links; everything else uses the chat's primary link.
+    # join-request links; everything else uses a secondary named link so the
+    # chat's primary invite never ends up in post signatures.
     approval = (saved.join_approval or "open") if saved is not None else "open"
     try:
         if approval == "confirm":
             join_link = await create_confirm_link(bot, chat_id)
         else:
-            join_link = await bot.export_chat_invite_link(chat_id)
+            join_link = await create_open_link(bot, chat_id)
     except TelegramBadRequest as exc:
         _log.warning("regain_export_failed", chat_id=chat_id, error=str(exc))
         return

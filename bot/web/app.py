@@ -41,15 +41,19 @@ async def auth_middleware(
     request: web.Request,
     handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
 ) -> web.StreamResponse:
-    """Bearer-token gate for /ready and /version; /health bypasses.
+    """Bearer-token gate for /ready and /version.
+
+    /health (liveness probe) and the webhook path bypass Bearer auth: the
+    webhook is authenticated separately by the Telegram secret token, and
+    Telegram sends no Authorization header.
 
     Settings come from `request.app["settings"]`, so this works on both the
     control app and the webhook app.
     """
-    # /health is always open: liveness probe for Docker HEALTHCHECK
-    if request.path == "/health":
-        return await handler(request)
     settings: Settings = request.app["settings"]
+    # /health is always open: liveness probe for Docker HEALTHCHECK
+    if request.path in ("/health", settings.webhook_path):
+        return await handler(request)
     if not _check_auth(request, settings):
         return web.json_response({"error": "unauthorized"}, status=401)
     return await handler(request)

@@ -40,6 +40,7 @@ from bot.handlers.posts import render_recent_posts, render_user_posts
 from bot.menus import inline_menu
 from bot.services.access import AccessDecision, AccessService, PublishChannel
 from bot.services.access_messages import (
+    blocked_pm_reply,
     build_admin_contacts_text,
     build_guest_message,
     collect_staff_ids,
@@ -305,6 +306,10 @@ async def menu_add_chat(
 ) -> None:
     ctx = await _menu_context(query, access, membership)
     if ctx is None or not await _member_gate(query, ctx, session_factory):
+        return
+    if ctx.decision.role == UserRole.BLOCKED:
+        await ctx.message.answer(blocked_pm_reply(ctx.decision))
+        await safe_answer(query)
         return
     await start_add_chat(state, ctx.message)
     await safe_answer(query)
