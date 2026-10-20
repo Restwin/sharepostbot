@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+from bot import texts
 from bot.config import Settings
 from bot.db.models import AppUser, CommunityLinks, RestrictMode, UserRole
-from bot.handlers.common import _menu_keyboard
+from bot.handlers.common import _menu_keyboard, menu_backup_db
 from bot.menus.inline_menu import main_menu
 from bot.services.access import AccessDecision
 
@@ -136,3 +140,31 @@ async def test_menu_keyboard_present_for_staff(session_factory):
     kb = await _menu_keyboard(_decision(UserRole.STAFF), False, session_factory, _settings())
     assert kb is not None
     assert "👥 Пользователи" in _texts(kb)
+
+
+def _backup_query():
+    message = SimpleNamespace(edit_text=AsyncMock(), answer=AsyncMock())
+    query = SimpleNamespace(
+        message=message,
+        from_user=SimpleNamespace(id=1, username=None, first_name="A", last_name=None),
+        answer=AsyncMock(),
+    )
+    access = SimpleNamespace(resolve=AsyncMock(return_value=_decision(UserRole.STAFF)))
+    membership = SimpleNamespace(is_member=AsyncMock(return_value=False))
+    return query, access, membership
+
+
+async def test_menu_backup_db_disabled_shows_stub():
+    query, access, membership = _backup_query()
+    await menu_backup_db(query, _settings(backup_to_chat_enabled=False), access, membership)
+    query.message.edit_text.assert_awaited_once()
+    assert query.message.edit_text.call_args.args[0] == texts.BACKUP_DISABLED
+    assert query.message.edit_text.call_args.kwargs["reply_markup"] is not None
+    query.message.answer.assert_not_awaited()
+
+
+async def test_menu_backup_db_enabled_shows_hint():
+    query, access, membership = _backup_query()
+    await menu_backup_db(query, _settings(), access, membership)
+    query.message.answer.assert_awaited_once_with(texts.HINT_BACKUP_DB)
+    query.message.edit_text.assert_not_awaited()

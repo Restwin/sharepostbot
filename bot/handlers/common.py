@@ -220,7 +220,6 @@ _HINTS: dict[str, str] = {
     "admin_contacts:remove": texts.HINT_CONTACTS_REMOVE,
     "admin_contacts:order": texts.HINT_CONTACTS_ORDER,
     "stats:user": texts.HINT_STATS_USER,
-    "backup_db": texts.HINT_BACKUP_DB,
 }
 
 
@@ -730,6 +729,26 @@ async def menu_all_posts(
 @router.callback_query(MenuCallback.filter(F.action == "page_marker"))
 async def menu_page_marker(query: CallbackQuery) -> None:
     """No-op handler for the middle pagination button."""
+    await safe_answer(query)
+
+
+@router.callback_query(MenuCallback.filter(F.action == "backup_db"))
+async def menu_backup_db(
+    query: CallbackQuery,
+    settings: Settings,
+    access: AccessService,
+    membership: MembershipService,
+) -> None:
+    ctx = await _menu_context(query, access, membership)
+    if ctx is None or not await _staff_gate(query, ctx):
+        return
+    if not settings.backup_to_chat_enabled:
+        await ctx.message.edit_text(
+            texts.BACKUP_DISABLED,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[inline_menu.back_button()]]),
+        )
+    else:
+        await ctx.message.answer(texts.HINT_BACKUP_DB)
     await safe_answer(query)
 
 

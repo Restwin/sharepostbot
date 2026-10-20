@@ -107,6 +107,9 @@ class Settings(BaseSettings):
     backup_dir: Path = Path("./data/backups")
     backup_interval_hours: float = Field(default=24.0, gt=0)
     backup_keep: int = Field(default=14, ge=1)
+    # Allow sending DB backups to Telegram (/backup_db and the menu button).
+    # False = backups are made on the server only; the menu button shows a stub.
+    backup_to_chat_enabled: bool = False
 
     # --- API session (retry on transient network errors) ---
     api_timeout_seconds: float = 30.0

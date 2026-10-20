@@ -76,6 +76,10 @@ async def backup_db(
         await temp_reply(message, texts.ADMIN_ONLY_SHORT)
         return
 
+    if not settings.backup_to_chat_enabled:
+        await temp_reply(message, texts.BACKUP_DISABLED)
+        return
+
     path = Path(settings.db_path)
     if not path.exists():
         await temp_reply(message, texts.BACKUP_NOT_FOUND.format(path=html_escape(str(path))))
