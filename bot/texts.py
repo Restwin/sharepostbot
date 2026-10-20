@@ -741,7 +741,9 @@ HINT_CONTACTS_REMOVE = "Используй: <code>/admin_contacts remove &lt;id&
 HINT_CONTACTS_ORDER = "Используй: <code>/admin_contacts order &lt;id&gt; &lt;число&gt;</code>"
 HINT_STATS_USER = "Используй: <code>/stats user &lt;@username|id&gt;</code>"
 HINT_BACKUP_DB = "Используй: <code>/backup_db</code> — файл БД уйдёт в отладочные чаты."
-BACKUP_DISABLED = "Бэкапы осуществляются на сервере. Функциональность бэкапа в отладочный чат отключена."
+BACKUP_DISABLED = (
+    "Бэкапы осуществляются на сервере. Функциональность бэкапа в отладочный чат отключена."
+)
 
 # Throttling (rate-limit notice).
 THROTTLED = "Слишком часто — подожди секунду."

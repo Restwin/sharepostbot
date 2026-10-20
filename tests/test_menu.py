@@ -165,6 +165,6 @@ async def test_menu_backup_db_disabled_shows_stub():
 
 async def test_menu_backup_db_enabled_shows_hint():
     query, access, membership = _backup_query()
-    await menu_backup_db(query, _settings(), access, membership)
+    await menu_backup_db(query, _settings(backup_to_chat_enabled=True), access, membership)
     query.message.answer.assert_awaited_once_with(texts.HINT_BACKUP_DB)
     query.message.edit_text.assert_not_awaited()

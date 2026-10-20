@@ -1,6 +1,6 @@
 [project]
 name = "sharepostbot"
-version = "1.0.2"
+version = "1.0.4"
 description = "Telegram posting bot for a closed community: reposts from source chats into the main channel with a signature"
 requires-python = ">=3.12"
 readme = "README.md"
